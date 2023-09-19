@@ -51,16 +51,14 @@ int main(){
         tempo_decorrido = min(tempo_chegada, tempo_saida);
 
         if(tempo_decorrido == tempo_chegada){
-
-            if(fila){
-                fila++;
-            }else{
+            //chegada
+            //a cabeca da fila eh quem esta em 
+            if(!fila){
                 tempo_saida = tempo_decorrido + (-1.0/media_servico) * log(uniforme());
             }
-
+            fila++;
             tempo_chegada = tempo_decorrido + (-1.0/media_chegada) * log(uniforme());
-
-        } else if(tempo_decorrido == tempo_saida) {
+            } else if(tempo_decorrido == tempo_saida) {
 
             if(fila){
                 fila--;
