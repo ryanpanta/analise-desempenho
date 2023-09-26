@@ -11,9 +11,10 @@ Qual o tempo de serviço?
 
 ## Conteúdo:  
 1. Gerar gráficos de Ocupação Simulada, E[N] e E[W].  
-1.1 Estrutura: Ocupação Simulada por Ocupação Calculada;  
-               E[N] por Ocupação Calculada;  
-               E[W] por Ocupação Calculada;  
+1.1 Estrutura:   
+Ocupação Simulada por Ocupação Calculada;  
+E[N] por Ocupação Calculada;  
+E[W] por Ocupação Calculada;  
 2. Little -> E[N] = λE[W]  
 3. Medir a cada 10 segundos exatos o erro de Little.  
 3.1 Erro de Little -> |E[N] - λE[N]| ≈ 0  
