@@ -87,7 +87,7 @@ int main(){
    
     double tempo_coleta = 10.0;
     FILE *f;
-    f = fopen("result.txt", "wt");
+    f = fopen("result.csv", "wt");
 
     // Loop principal da simulação
     while(tempo_decorrido < params.tempo_simulacao){
@@ -152,7 +152,7 @@ int main(){
             double lambda = e_w_chegada.no_eventos / tempo_decorrido;
             double erroLittle = e_n_calculo - lambda * e_w_calculo;
 
-            fprintf(f, "%.2lF, %.20lF\n", tempo_coleta, fabs(erroLittle));
+            fprintf(f, "%.2lF,%.20lF\n", tempo_coleta, fabs(erroLittle));
             
             printf("Tempo de: %lF Erro de Little: %.20lF\n", tempo_coleta, fabs(erroLittle));
             tempo_coleta += 10;
