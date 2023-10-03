@@ -84,9 +84,14 @@ int main(){
         Little - fim
     */
 
+   
+    double tempo_coleta = 10.0;
+    FILE *f;
+    f = fopen("result.txt", "wt");
+
     // Loop principal da simulação
     while(tempo_decorrido < params.tempo_simulacao){
-        tempo_decorrido = min(tempo_chegada, tempo_saida);
+        tempo_decorrido = min(min(tempo_chegada, tempo_saida), tempo_coleta);
 
         if(tempo_decorrido == tempo_chegada){
             // Evento de chegada
@@ -133,7 +138,27 @@ int main(){
             e_w_saida.no_eventos++;
             e_w_saida.tempo_anterior = tempo_decorrido;
 
-        } else{
+        } else if(tempo_decorrido == tempo_coleta){
+
+            e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
+            e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
+            e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
+            e_n.tempo_anterior = tempo_decorrido;
+            e_w_chegada.tempo_anterior = tempo_decorrido;
+            e_w_saida.tempo_anterior = tempo_decorrido;
+
+            double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
+            double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
+            double lambda = e_w_chegada.no_eventos / tempo_decorrido;
+            double erroLittle = e_n_calculo - lambda * e_w_calculo;
+
+            fprintf(f, "%.2lF, %.20lF\n", tempo_coleta, fabs(erroLittle));
+            
+            printf("Tempo de: %lF Erro de Little: %.20lF\n", tempo_coleta, fabs(erroLittle));
+            tempo_coleta += 10;
+        } 
+
+        else{
             // Tratamento de evento inválido
             printf("Evento invalido!\n");
             return(1);
@@ -141,7 +166,6 @@ int main(){
     }
 
     e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
-
     e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
 
     // Cálculo e exibição da taxa média de ocupação do servidor
@@ -149,17 +173,15 @@ int main(){
 
     printf("tamanho maximo da fila: %d\n", max_fila);
 
-    double e_n_calculo = e_n.soma_areas / tempo_decorrido;
-
+    double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
     double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
-
     double lambda = e_w_chegada.no_eventos / tempo_decorrido;
 
     printf("E[N]: %lF\n", e_n_calculo);
     printf("E[W]: %lF\n", e_w_calculo);
 
-    printf("Erro de Little: %lF\n", e_n_calculo - lambda * e_w_calculo);
-
+    printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
+    fclose(f);
 
     return 0;
 }
