@@ -62,11 +62,22 @@
 #include <math.h>
 #include <float.h>
 #include <time.h>
+#include "minheap.h"
+
+#define TAM_PACOTE 1504
+#define TEMPO_SIMULACAO 864000
+#define INVERVALO_PACOTE 0.02
+#define TAM_LINK 1000000000
+#define PACOTE_SEGUNDO 75200
+#define GBPS_USUARIO 0.0000752
+#define TEMPO_SERVICO 0.000001504
+
+double quantidade_pessoas = 0.0;
+double quantidade_pessoas_segundo = 0.0;
 
 // Definindo uma estrutura para armazenar parâmetros da simulação
 typedef struct {
-    double media_chegada;    // Taxa média de chegada de clientes
-    double media_servico;    // Taxa média de serviço
+    double ocupacao;          // Taxa média de chegada de clientes;
     double tempo_simulacao;  // Tempo total de simulação
 } parametros;
 
@@ -85,34 +96,36 @@ void inicia_little(little * l){
 typedef struct {
     double tempo_chegada;
     double tempo_duracao;
-    // Outros campos necessários para uma conexão VoIP
+    double tempo_prox_pacote;
+    // mais
 } conexao;
 
-typedef struct {
-    conexao* array;
-    int tamanho;
-    int capacidade;
-} minheap;
+// typedef struct {
+//     conexao* array;
+//     int tamanho;
+//     int capacidade;
+// } minheap;
 
 typedef struct {
     double tempo_chegada;
-    // Outros campos necessários para um pacote VoIP
+    // mais
 } pacote;
 
 
 
 // Função para ler os parâmetros da simulação a partir da entrada padrão
 void le_parametros(parametros * params){
-    printf("Informe o tempo medio entre clientes (s): ");
-    scanf("%lF", &params->media_chegada);
-    params->media_chegada = 1.0/params->media_chegada;
 
-    printf("Informe o tempo medio de servico (s): ");
-    scanf("%lF", &params->media_servico);
-    params->media_servico = 1.0/params->media_servico;
-
-    printf("Informe o tempo a ser simulado (s): ");
-    scanf("%lF", &params->tempo_simulacao);
+    printf("Informe a ocupação: (60%%, 80%%, 90%%, 99%%)\n");
+    scanf("%lF", &params->ocupacao);
+    quantidade_pessoas = params->ocupacao/GBPS_USUARIO;
+    quantidade_pessoas_segundo = quantidade_pessoas/120.0;
+    
+    printf("Tempo de simulação definido para 864000s (10 dias)\n");
+    params->tempo_simulacao = TEMPO_SIMULACAO;
+    
+    printf("É preciso de %lF pessoas para atingir a ocupação desejada\n", quantidade_pessoas);
+ 
 }
 
 // Função para gerar um número aleatório uniformemente distribuído entre 0 e 1
@@ -138,9 +151,11 @@ int main(){
     parametros params;
     le_parametros(&params);
 
+    pacote pct;
+
     // Variáveis de controle da simulação
     double tempo_decorrido = 0.0;
-    double tempo_chegada = (-1.0/params.media_chegada) * log(uniforme());
+    double tempo_chegada = (-1.0/quantidade_pessoas_segundo) * log(uniforme()); //primeira conexão
     double tempo_saida = DBL_MAX; // Inicializa o tempo de saída como infinito
     unsigned long int fila = 0;
     int max_fila = 0.0;
@@ -174,7 +189,7 @@ int main(){
             // Evento de chegada
             if(!fila){
                 // Se não há clientes na fila, inicia-se o serviço imediatamente
-                double tempo_servico = (-1.0/params.media_servico) * log(uniforme());
+                //double tempo_servico = (-1.0/params.media_servico) * log(uniforme());
                 tempo_saida = tempo_decorrido + tempo_servico; // Define o tempo de saída
                 soma_ocupacao += tempo_servico;  // Atualiza a soma da ocupação
             }
@@ -246,19 +261,33 @@ int main(){
     e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
 
     // Cálculo e exibição da taxa média de ocupação do servidor
-    printf("ocupacao: %lF\n", soma_ocupacao/tempo_decorrido);
+    // printf("ocupacao: %lF\n", soma_ocupacao/tempo_decorrido);
 
-    printf("tamanho maximo da fila: %d\n", max_fila);
+    // printf("tamanho maximo da fila: %d\n", max_fila);
 
-    double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
-    double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
-    double lambda = e_w_chegada.no_eventos / tempo_decorrido;
+    // double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
+    // double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
+    // double lambda = e_w_chegada.no_eventos / tempo_decorrido;
 
-    printf("E[N]: %lF\n", e_n_calculo);
-    printf("E[W]: %lF\n", e_w_calculo);
+    // printf("E[N]: %lF\n", e_n_calculo);
+    // printf("E[W]: %lF\n", e_w_calculo);
 
-    printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
-    fclose(f);
+    // printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
+    // fclose(f);
+
+
+    // int arr[9] = { 2, 15, 7, 6, 11, 4, 3, 1, 8 };
+	// heap* hp = createHeap(9, arr);
+
+    // printf("Array com todos os nós\n");
+	// printHeap(hp);
+	// extractMin(hp);
+    // printHeap(hp);
+    // extractMin(hp);
+    // printHeap(hp);
+    // extractMin(hp);
+    // printf("Array sem os três menores nó\n");
+	// printHeap(hp);
 
     return 0;
 }
