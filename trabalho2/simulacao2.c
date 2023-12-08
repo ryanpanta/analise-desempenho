@@ -50,6 +50,11 @@
     .                                                                    c      c
     }                                                                   / \
 .                                                                     c    c
+    ------- eventos -------
+    quando uma conexão começa
+    pra cada conexão ativa, eu tenho quando o pacote chega
+    pacote foi para o atendimento e saiu (tempo de serviço)
+    tempo de coleta (10s)
 
 
 

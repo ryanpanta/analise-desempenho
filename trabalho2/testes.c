@@ -1,76 +1,16 @@
-/*          ----    anotações e explicações do professor    ----
-
-    cada ligação tem em média 2 minutos
-
-    vamos fazer os cálculos para uma ocupação de 60%:
-
-    link = 1 Gbps
-    60% temos que ter que os dados = 0,6 Gbps
-
-    quantas pessoas precisam estar ativas (em média) de modo a gerarmos 0,6 Gbps?
-    tamanho do pacote = 188bytes
-
-    então, quantos pacotes uma pessoa gera por segundo? 
-    cada pessoa gera 1 pacote a cada 20ms, então a cada segundo uma pessoa
-    vai gerar 50 pacotes, pois 50 * 20ms = 1s;
-
-    agora, quantas Gbps uma pessoa gera por segundo?
-    temos que cada pacote é igual a 188bytes, 188*50 = 9400 bytes/s 
-    9400 bytes = 75200 bits
-    75200 bits = 0,000075200 Gbps
-
-    agora, quantas pessoas precisa para dar 0,6 Gbps?
-    podemos fazer uma regra de três:
-    1 ----- 0,000075200 Gbps
-    x ----- 0,6 Gbps
-    Resolução:
-    0,000075200x = 0,6
-    x = 0,6/0,000075200
-    x = 7978.72340426 pessoas
-
-    última pergunta, quantas pessoas precisa gerar em média por segundo, para que 
-    depois de 2 minutos, o link fica estável em 60% de ocupação ou em torno de 7978.72340426 pessoas?
-    para isso, precisamos pegar o número de pessoas e dividir por 2 minutos (em segundos)
-    com isso temos 7978.72340426/120 = 66.4893617021 pessoas por segundo depois de 2 minutos
-
-    ---------------------------------------------------------------------------------------------------------
-
-    gerar conexão -> l = 1/66.4893617021
-
-    if(tempo == nova_conexao){           
-    10s    //criar conexão --------------------> alocar (malloc)
-    12s    //gerar tempo próxima conexão   \---> gerar tempo duração (2 min)
-    } 
-    else if(tempo == chegada_pct){
-        //gera pacote-->fila roteamento/roteador
-        //proximo pacote = 10,02s                               implementar árvore min_heap
-        se o pacote for > 12 (free)                                         nc
-    }                                                                      /  \
-    else if(tempo == coleta){                                             /    \
-    .                                                                    c      c
-    }                                                                   / \
-.                                                                     c    c
-
-
-
-*/
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <float.h>
 #include <time.h>
-#include "minheap.h"
 
-#define TAM_PACOTE 1504
-#define TEMPO_SIMULACAO 864000
-#define INVERVALO_PACOTE 0.02
-#define TAM_LINK 1000000000
-#define PACOTE_SEGUNDO 75200
-#define GBPS_USUARIO 0.0000752
-#define TEMPO_SERVICO 0.000001504
+#define TAM_PACOTE 1504 // tamanho do pacote = 188 bytes * 8
+#define TEMPO_SIMULACAO 864000 // 10 dias em segundos
+#define INVERVALO_PACOTE 0.02 // 20ms em segundos
+#define TAM_LINK 1000000000 // 1 Gbps
+#define PACOTE_SEGUNDO 75200 // pacote por segundo, ou seja, um usuario manda 75200 bits por segundo
+#define GBPS_USUARIO 0.0000752 // quantidade de Gbps por usuario
+#define TEMPO_SERVICO_S 0.000001504 // tempo de serviço para atender um pacote
 
 double quantidade_pessoas = 0.0;
 double quantidade_pessoas_segundo = 0.0;
@@ -100,16 +40,181 @@ typedef struct {
     // mais
 } conexao;
 
-// typedef struct {
-//     conexao* array;
-//     int tamanho;
-//     int capacidade;
-// } minheap;
+enum TipoEvento {
+    NOVA_CONEXAO,
+    CONEXAO_ATIVA,
+    TEMPO_SERVICO,
+    COLETA_DADOS
+};
 
 typedef struct {
-    double tempo_chegada;
-    // mais
-} pacote;
+    enum TipoEvento tipo;
+    double tempo;
+    // outros campos necessários
+} Evento;
+
+Evento *novo_evento(int tipo, double tempo) {
+    Evento *e = (Evento *) malloc(sizeof(Evento));
+
+    e->tipo = tipo;
+    e->tempo = tempo;
+
+    return e;
+}
+
+// Declare a heap structure
+struct Heap {
+	Evento* arr;
+	int size;
+	int capacity;
+};
+
+// define the struct Heap name
+typedef struct Heap heap;
+
+// forward declarations
+heap* createHeap(int capacity, Evento* nums);
+void insertHelper(heap* h, int index);
+void heapify(heap* h, int index);
+Evento extractMin(heap* h);
+void insert(heap* h, Evento data);
+Evento getMin(heap* h);
+
+// Define a createHeap function
+heap* createHeap(int capacity, Evento* eventos) {
+    heap* h = (heap*)malloc(sizeof(heap));
+    if (h == NULL) {
+        printf("Memory error");
+        return NULL;
+    }
+    h->size = 0;
+    h->capacity = capacity;
+    h->arr = (Evento*)malloc(capacity * sizeof(Evento));
+    if (h->arr == NULL) {
+        printf("Memory error");
+        return NULL;
+    }
+    for (int i = 0; i < capacity; i++) {
+        h->arr[i] = eventos[i];
+    }
+    h->size = capacity;
+    int i = (h->size - 2) / 2;
+    while (i >= 0) {
+        heapify(h, i);
+        i--;
+    }
+    return h;
+}
+
+// Defining insertHelper function
+void insertHelper(heap* h, int index) {
+
+    // Store parent of element at index
+    // in parent variable
+    int parent = (index - 1) / 2;
+
+    if (h->arr[parent].tempo > h->arr[index].tempo) {
+        // Swapping when child is smaller
+        // than parent element
+        Evento temp = h->arr[parent];
+        h->arr[parent] = h->arr[index];
+        h->arr[index] = temp;
+
+        // Recursively calling insertHelper
+        insertHelper(h, parent);
+    }
+}
+
+void heapify(heap* h, int index) {
+
+    int left = index * 2 + 1;
+    int right = index * 2 + 2;
+    int min = index;
+
+    // Checking whether our left or child element
+    // is at right index or not to avoid index error
+    if (left >= h->size || left < 0)
+        left = -1;
+    if (right >= h->size || right < 0)
+        right = -1;
+
+    // store left or right element in min if
+    // any of these is smaller that its parent
+    if (left != -1 && h->arr[left].tempo < h->arr[index].tempo)
+        min = left;
+    if (right != -1 && h->arr[right].tempo < h->arr[min].tempo)
+        min = right;
+
+    // Swapping the nodes
+    if (min != index) {
+        Evento temp = h->arr[min];
+        h->arr[min] = h->arr[index];
+        h->arr[index] = temp;
+
+        // recursively calling for their child elements
+        // to maintain min heap
+        heapify(h, min);
+    }
+}
+
+
+Evento extractMin(heap* h)
+{
+	Evento deleteItem;
+
+	// Checking if the heap is empty or not
+	if (h->size == 0) {
+		printf("\nHeap id empty.");
+		return (Evento){NOVA_CONEXAO, -999};
+	}
+
+	// Store the node in deleteItem that
+	// is to be deleted.    
+	deleteItem = h->arr[0];
+
+	// Replace the deleted node with the last node
+	h->arr[0] = h->arr[h->size - 1];
+	// Decrement the size of heap
+	h->size--;
+
+	// Call minheapify_top_down for 0th index
+	// to maintain the heap property
+	heapify(h, 0);
+	return deleteItem;
+}
+
+Evento getMin(heap* h) {
+    if (h->size == 0) {
+        printf("\nHeap is empty.");
+        // Retorne um evento inválido caso a heap esteja vazia
+        return (Evento){NOVA_CONEXAO, -999};
+    }
+
+    return h->arr[0];
+}
+// Define a insert function
+void insert(heap* h, Evento data)
+{
+
+	// Checking if heap is full or not
+	if (h->size < h->capacity) {
+		// Inserting data into an array
+		h->arr[h->size] = data;
+		// Calling insertHelper function
+		insertHelper(h, h->size);
+		// Incrementing size of array
+		h->size++;
+	}
+}
+
+void printHeap(heap* h)
+{
+
+	for (int i = 0; i < h->size; i++) {
+		printf("%d ", h->arr[i]);
+	}
+	printf("\n");
+}
 
 
 
@@ -151,7 +256,6 @@ int main(){
     parametros params;
     le_parametros(&params);
 
-    pacote pct;
 
     // Variáveis de controle da simulação
     double tempo_decorrido = 0.0;
@@ -176,22 +280,27 @@ int main(){
         Little - fim
     */
 
-   
+    int eventos_iniciais[10000000];
+    heap* eventos_heap = createHeap(10000000, eventos_iniciais);
+    insert(eventos_heap, *novo_evento(COLETA_DADOS, 10));
+    insert(eventos_heap, *novo_evento(NOVA_CONEXAO, tempo_chegada));
+    Evento e;
     double tempo_coleta = 10.0;
     FILE *f;
     f = fopen("result.csv", "wt");
 
     // Loop principal da simulação
     while(tempo_decorrido < params.tempo_simulacao){
-        tempo_decorrido = min(min(tempo_chegada, tempo_saida), tempo_coleta);
+        e = getMin(eventos_heap);
+        tempo_decorrido = e.tempo;
 
-        if(tempo_decorrido == tempo_chegada){
+        if(e.tipo == NOVA_CONEXAO){
             // Evento de chegada
             if(!fila){
-                // Se não há clientes na fila, inicia-se o serviço imediatamente
-                //double tempo_servico = (-1.0/params.media_servico) * log(uniforme());
-                tempo_saida = tempo_decorrido + tempo_servico; // Define o tempo de saída
-                soma_ocupacao += tempo_servico;  // Atualiza a soma da ocupação
+                // PRECISA GERAR UM TEMPO DE DE DURAÇÃO (CONEXÃO)
+                double tempo_servico = (-1.0/params.media_servico) * log(uniforme());
+                tempo_saida = tempo_decorrido + TEMPO_SERVICO_S; // Define o tempo de saída
+                soma_ocupacao += TEMPO_SERVICO_S;  // Atualiza a soma da ocupação
             }
             fila++; // Incrementa o número de clientes na fila
             max_fila = fila > max_fila? fila:max_fila;
@@ -260,34 +369,34 @@ int main(){
     e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
     e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
 
-    // Cálculo e exibição da taxa média de ocupação do servidor
-    // printf("ocupacao: %lF\n", soma_ocupacao/tempo_decorrido);
+    //Cálculo e exibição da taxa média de ocupação do servidor
+    printf("ocupacao: %lF\n", soma_ocupacao/tempo_decorrido);
 
-    // printf("tamanho maximo da fila: %d\n", max_fila);
+    printf("tamanho maximo da fila: %d\n", max_fila);
 
-    // double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
-    // double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
-    // double lambda = e_w_chegada.no_eventos / tempo_decorrido;
+    double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
+    double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
+    double lambda = e_w_chegada.no_eventos / tempo_decorrido;
 
-    // printf("E[N]: %lF\n", e_n_calculo);
-    // printf("E[W]: %lF\n", e_w_calculo);
+    printf("E[N]: %lF\n", e_n_calculo);
+    printf("E[W]: %lF\n", e_w_calculo);
 
-    // printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
-    // fclose(f);
+    printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
+    fclose(f);
 
 
-    // int arr[9] = { 2, 15, 7, 6, 11, 4, 3, 1, 8 };
-	// heap* hp = createHeap(9, arr);
+    int arr[9] = { 2, 15, 7, 6, 11, 4, 3, 1, 8 };
+	heap* hp = createHeap(9, arr);
 
-    // printf("Array com todos os nós\n");
-	// printHeap(hp);
-	// extractMin(hp);
-    // printHeap(hp);
-    // extractMin(hp);
-    // printHeap(hp);
-    // extractMin(hp);
-    // printf("Array sem os três menores nó\n");
-	// printHeap(hp);
+    printf("Array com todos os nós\n");
+	printHeap(hp);
+	extractMin(hp);
+    printHeap(hp);
+    extractMin(hp);
+    printHeap(hp);
+    extractMin(hp);
+    printf("Array sem os três menores nó\n");
+	printHeap(hp);
 
     return 0;
 }
