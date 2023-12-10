@@ -6,7 +6,7 @@
 
 
 #define TAM_PACOTE 188.0 * 9.0 // tamanho do pacote = 188 bytes * 8
-#define TEMPO_SIMULACAO 100.0 // 10 dias em segundos
+#define TEMPO_SIMULACAO 20.0 // 10 dias em segundos
 #define INVERVALO_PACOTE 0.02 // 20ms em segundos
 #define TAM_LINK 1000000000.0 // 1 Gbps
 #define PACOTE_SEGUNDO 75200.0 // pacote por segundo, ou seja, um usuario manda 75200 bits por segundo
@@ -30,17 +30,16 @@ typedef struct {
 } little;
 
 void inicia_little(little * l){
-    l->no_eventos = 0;
+    l->no_eventos = 0.0;
     l->tempo_anterior = 0.0;
     l->soma_areas = 0.0;
 }
-
 
 enum TipoEvento {
     NOVA_CONEXAO, 
     CONEXAO_ATIVA,
     TEMPO_SERVICO,
-    COLETA_DADOS
+    COLETA_DADOS,
 };
 
 typedef struct {
@@ -50,156 +49,86 @@ typedef struct {
     // outros campos necessários
 } Evento;
 
-Evento novo_evento(int tipo, double tempo, double tempo_duracao) {
-    Evento e;
-
-    e.tipo = tipo;
-    e.tempo = tempo;
-    e.tempo_duracao = tempo_duracao;
-
-    return e;
-}
-
-// Declare a heap structure
-struct Heap {
-	Evento* arr;
-	int size;
-	int capacity;
-};
-
-// define the struct Heap name
-typedef struct Heap heap;
+#define MAXN 1000100
 
 
-// Define a createHeap function
-heap* createHeap(int capacity) {
-    heap* h = (heap*)malloc(sizeof(heap));
-    if (h == NULL) {
-        printf("Memory error");
-        return NULL;
-    }
-    h->size = 0;
-    h->capacity = capacity;
-    h->arr = (Evento*)malloc(capacity * sizeof(Evento));
-    if (h->arr == NULL) {
-        printf("Memory error");
-        return NULL;
-    }
-    return h;
-}
+Evento heap[MAXN];
+int tamanho_heap;
 
-// Defining insertHelper function
-void insertHelper(heap* h, int index) { //OK
-
-    // Store parent of element at index
-    // in parent variable
-    int parent = (index - 1) / 2;
-
-    if (h->arr[parent].tempo > h->arr[index].tempo) {
-        // Swapping when child is smaller
-        // than parent element
-        Evento temp = h->arr[parent];
-        h->arr[parent] = h->arr[index];
-        h->arr[index] = temp;
-
-        // Recursively calling insertHelper
-        insertHelper(h, parent);
-    }
-}
-
-void heapify(heap* h, int index) {
-
-    int left = index * 2 + 1;
-    int right = index * 2 + 2;
-    int min = index;
-
-    // Checking whether our left or child element
-    // is at right index or not to avoid index error
-    if (left >= h->size || left < 0)
-        left = -1;
-    if (right >= h->size || right < 0)
-        right = -1;
-
-    // store left or right element in min if
-    // any of these is smaller that its parent
-    if (left != -1 && h->arr[left].tempo < h->arr[index].tempo)
-        min = left;
-    if (right != -1 && h->arr[right].tempo < h->arr[min].tempo)
-        min = right;
-
-    // Swapping the nodes
-    if (min != index) {
-        Evento temp = h->arr[min];
-        h->arr[min] = h->arr[index];
-        h->arr[index] = temp;
-
-        // recursively calling for their child elements
-        // to maintain min heap
-        heapify(h, min);
-    }
-}
-
-
-Evento extractMin(heap* h)
+int pai(int i)
 {
-	Evento deleteItem;
-
-	// Checking if the heap is empty or not
-	if (h->size == 0) {
-		printf("\nHeap id empty.");
-		return (Evento){NOVA_CONEXAO, -999};
-	}
-
-	// Store the node in deleteItem that
-	// is to be deleted.    
-	deleteItem = h->arr[0];
-
-	// Replace the deleted node with the last node
-	h->arr[0] = h->arr[h->size - 1];
-	// Decrement the size of heap
-	h->size--;
-
-	// Call minheapify_top_down for 0th index
-	// to maintain the heap property
-	heapify(h, 0);
-	return deleteItem; 
-    
+    return i / 2;
 }
 
-Evento getMin(heap* h){
-    if(h->size == 0){
-        printf("\nHeap is empty.");
-        Evento void_event;
-        return void_event;
-    }
-
-    Evento evento_extraido = h->arr[0]; 
-    h->arr[0] = h->arr[h->size - 1];
-    h->size--;
-
-    heapify(h, 0);
-    return evento_extraido;
-}
-
-// Define a insert function
-void insert(heap* h, Evento data)
+int esquerda(int i)
 {
-
-	// Checking if heap is full or not
-	if (h->size >= h->capacity) return;
-		// Inserting data into an array
-    h->arr[h->size] = data;
-    // Calling insertHelper function
-    insertHelper(h, h->size);
-    // Incrementing size of array
-    h->size++;
-	
+    return 2 * i;
 }
 
-void freeEvento(Evento *e) {
-    free(e);
+int direita(int i)
+{
+    return 2 * i + 1;
 }
 
+void heapify_up(int v)
+{
+    if (v == 1)
+        return;
+
+    int p = pai(v);
+    if (heap[v].tempo < heap[p].tempo)
+    {
+        Evento temp = heap[v];
+        heap[v] = heap[p];
+        heap[p] = temp;
+
+        heapify_up(p);
+    }
+}
+
+void heapify_down(int v)
+{
+    int d = direita(v);
+    int e = esquerda(v);
+
+    int menor = v;
+
+    if (d <= tamanho_heap && heap[d].tempo < heap[menor].tempo)
+        menor = d;
+    if (e <= tamanho_heap && heap[e].tempo < heap[menor].tempo)
+        menor = e;
+
+    if (menor != v)
+    {
+        Evento temp = heap[v];
+        heap[v] = heap[menor];
+        heap[menor] = temp;
+
+        heapify_down(menor);
+    }
+}
+
+void insere(Evento valor)
+{
+    heap[++tamanho_heap] = valor;
+
+    heapify_up(tamanho_heap);
+}
+
+void deleta(int posicao)
+{
+    Evento temp = heap[posicao];
+    heap[posicao] = heap[tamanho_heap];
+    heap[tamanho_heap] = temp;
+
+    tamanho_heap--;
+
+    heapify_down(posicao);
+}
+
+void printa_raiz(void) {
+    printf("Raiz: Evento %d tempo %.10lF\n", heap[1].tipo, heap[1].tempo);
+}
 
 
 // Função para ler os parâmetros da simulação a partir da entrada padrão
@@ -215,6 +144,15 @@ void le_parametros(parametros * params){
     
     printf("É preciso de %lF pessoas para atingir a ocupação desejada\n", quantidade_pessoas);
  
+}
+
+Evento criaEvento(int tipo, double tempo, double tempo_duracao){
+    Evento e;
+    e.tipo = tipo;
+    e.tempo = tempo;
+    e.tempo_duracao = tempo_duracao;
+
+    return e;
 }
 
 // Função para gerar um número aleatório uniformemente distribuído entre 0 e 1
@@ -246,7 +184,7 @@ int main(){
 
     // Variáveis de controle da simulação
     double tempo_decorrido = 0.0;
-    double intervalo_chegada = 1/quantidade_pessoas_segundo; // 1/66
+    double intervalo_chegada = 1.0/quantidade_pessoas_segundo; // 1/66
     double tempo_chegada = (-1.0 / (1.0/ intervalo_chegada)) * log(uniforme()); //primeira conexão
     double tempo_saida = DBL_MAX; // Inicializa o tempo de saída como infinito
     double tempo_conexao = 0.0;
@@ -270,11 +208,13 @@ int main(){
         Little - fim
     */
 
-    heap* eventos_heap = createHeap(100000);
     Evento e;
     
-    insert(eventos_heap, novo_evento(COLETA_DADOS, 10, 0.0));
-    insert(eventos_heap, novo_evento(NOVA_CONEXAO, tempo_chegada, 0.0));
+    e = criaEvento(COLETA_DADOS, 10.0, 0.0);
+    insere(e);
+
+    e = criaEvento(NOVA_CONEXAO, tempo_chegada, 0.0);
+    insere(e);
     
     
     double tempo_coleta = 10.0;
@@ -283,26 +223,30 @@ int main(){
 
     // Loop principal da simulação
     while(tempo_decorrido < params.tempo_simulacao){
-        e = getMin(eventos_heap);
-        //freeEvento(&e);
+        e = heap[1];
+        deleta(1);
         tempo_decorrido = e.tempo;
-        printf("%lF\n", tempo_decorrido); //  <--- testes
+        //printf("%lF\n", tempo_decorrido); //  <--- testes
 
         if(e.tipo == NOVA_CONEXAO){ //n
             // Evento de chegada
                
-            tempo_conexao = (-1.0/TEMPO_CHAMADA) * log(uniforme());
+            tempo_conexao = (-1.0/TEMPO_CHAMADA) * log(uniforme()); // aproximadamente 2 minutos
             // isso deve manter? tempo_saida = tempo_decorrido + TEMPO_SERVICO_S; // Define o tempo de saída
             
             //soma_ocupacao += TEMPO_SERVICO_S;  
             
-            double tempo_saida_conexao = tempo_decorrido + tempo_conexao;
+            
 
             double tempo_conexao_ativa = tempo_decorrido + tempo_conexao;
-            insert(eventos_heap, novo_evento(CONEXAO_ATIVA, tempo_conexao_ativa, tempo_saida_conexao));
+
+
+            e = criaEvento(CONEXAO_ATIVA, tempo_conexao_ativa, tempo_conexao);
+            insere(e);
         
             double nova_conexao = tempo_decorrido + (-1.0/quantidade_pessoas_segundo) * log(uniforme());
-            insert(eventos_heap, novo_evento(NOVA_CONEXAO, nova_conexao, 0.0));
+            e = criaEvento(NOVA_CONEXAO, nova_conexao, 0.0);
+            insere(e);
             
             //max_fila = fila > max_fila? fila:max_fila;
             // isso deve manter? tempo_chegada = tempo_decorrido + (-1.0/params.media_chegada) * log(uniforme());  // Define o próximo tempo de chegada
@@ -320,35 +264,27 @@ int main(){
         } else if(e.tipo == CONEXAO_ATIVA){ //p
             // Evento de saída
 
-            fila++;
             if(fila > max_fila) max_fila = fila;
-            double tempo_pacote = tempo_decorrido;
-            tempo_pacote += 0.02;
+            double tempo_pacote = tempo_decorrido + 0.02;
+            // double tempo_pacote = tempo_decorrido;
+            // tempo_pacote += 0.02;
             
-            double tempo_saida_servico = tempo_decorrido + TEMPO_SERVICO_S;
+            //double tempo_saida_servico = tempo_decorrido + TEMPO_SERVICO_S;
+            double tempo_saida_servico = e.tempo_duracao;
 
-            if(tempo_pacote > tempo_saida_servico){
-                freeEvento(&e);
+            if(tempo_pacote < tempo_saida_servico){
+                e = criaEvento(CONEXAO_ATIVA, tempo_pacote, tempo_saida_servico);
+                insere(e);
             }
-            else
-                insert(eventos_heap, novo_evento(CONEXAO_ATIVA, tempo_pacote, tempo_saida_servico));
-
-
+            fila++;
+        
             if(!fila){
                 tempo_saida = tempo_decorrido + TEMPO_SERVICO_S;
-                insert(eventos_heap, novo_evento(TEMPO_SERVICO, TEMPO_SERVICO_S, tempo_saida));
+                e = criaEvento(TEMPO_SERVICO, TEMPO_SERVICO_S, tempo_saida);
+                insere(e);
                 soma_ocupacao += TEMPO_SERVICO_S;
             }
-            // fila--; // Remove um cliente da fila
-            // if(fila){
-            //     // Se há clientes na fila, o próximo cliente começa o serviço
-                
-            //     tempo_saida = tempo_decorrido + TEMPO_SERVICO_S; // Define o tempo de saída
-            //     soma_ocupacao += TEMPO_SERVICO_S;  // Atualiza a soma da ocupação
-            // }else{
-            //     // Se a fila está vazia, o servidor fica ocioso (tempo de saída infinito)
-            //     tempo_saida = DBL_MAX;
-            // }
+
             
             //calculo little -- E{N}
             e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
@@ -360,12 +296,13 @@ int main(){
             e_w_saida.no_eventos++;
             e_w_saida.tempo_anterior = tempo_decorrido;
 
-        } else if(e.tipo == TEMPO_SERVICO){ //s
+        } else if(e.tipo == TEMPO_SERVICO){ // SAIDA DE PACOTE
 
             fila--;
             if(fila){
                 tempo_saida = tempo_decorrido + TEMPO_SERVICO_S;
-                insert(eventos_heap, novo_evento(TEMPO_SERVICO, tempo_saida, 0.0));
+                e = criaEvento(TEMPO_SERVICO, tempo_saida, 0.0);
+                insere(e);
                 soma_ocupacao += TEMPO_SERVICO_S;
             }else{
                 tempo_saida = DBL_MAX;
@@ -380,7 +317,7 @@ int main(){
             e_w_saida.no_eventos++;
             e_w_saida.tempo_anterior = tempo_decorrido;
         
-        } else if(tempo_decorrido == COLETA_DADOS){ //c
+        } else if(e.tipo == COLETA_DADOS){ //c
 
             e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
             e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
@@ -397,8 +334,9 @@ int main(){
             fprintf(f, "%.2lF,%.20lF\n", tempo_coleta, fabs(erroLittle));
             
             printf("Tempo de: %lF Erro de Little: %.20lF\n", tempo_coleta, fabs(erroLittle));
-            tempo_coleta += 10;
-            insert(eventos_heap, novo_evento(COLETA_DADOS, tempo_decorrido + 10.0, 0.0));
+            //tempo_coleta += 10;
+            e = criaEvento(COLETA_DADOS, tempo_decorrido + 10.0, 0.0);
+            insere(e);
         } 
 
         else{
@@ -425,9 +363,6 @@ int main(){
 
     printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
     fclose(f);
-
-    free(eventos_heap->arr);
-    free(eventos_heap);
 
     return 0;
 }

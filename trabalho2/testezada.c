@@ -24,6 +24,7 @@ struct evento cria_evento(char tipo, double tempo, double limite){
     novo_evento.tipo_evento = tipo;
     novo_evento.tempo_evento = tempo;
     novo_evento.tempo_limite = limite;
+    // printf("Evento Criado: [%c] %lF %lF\n", novo_evento.tipo_evento, novo_evento.tempo_evento, novo_evento.tempo_limite);
 
     return novo_evento;
 }
@@ -76,7 +77,7 @@ struct heap * cria_heap(int capacity){
     struct heap * newHeap = (struct heap*)malloc(sizeof(struct heap));
 
     if(newHeap == NULL){
-        puts("Erro de alocacao de memoria!");
+        puts("Erro de alocacao da Heap!");
         return NULL;
     }
 
@@ -85,7 +86,7 @@ struct heap * cria_heap(int capacity){
     newHeap->array = (struct evento *)malloc(capacity * sizeof(struct evento));
 
     if(newHeap->array == NULL){
-        puts("Erro de alocacao de memoria!");
+        puts("Erro de alocacao do conteudo da Heap!");
         return NULL;
     }
 
@@ -130,7 +131,7 @@ typedef struct {
 void le_parametros(parametros * params){
     printf("Informe o tempo medio entre clientes (s): ");
     scanf("%lF", &params->media_chegada);
-    params->media_chegada = 1.0/params->media_chegada;
+    params->media_chegada = 1.0 / params->media_chegada;
 
     printf("Informe o tempo a ser simulado (s): ");
     scanf("%lF", &params->tempo_simulacao);
@@ -153,10 +154,13 @@ void inicia_little(little * l){
 // Simulador
 
 double uniforme() {
-	double u = rand() / ((double) RAND_MAX + 1); //limitando entre (0,1]
+	double u = rand() / ((double) RAND_MAX + 1);
+	//limitando entre (0,1]
+	u = 1.0 - u;
 
-	return (1.0 - u);
+	return (u);
 }
+
 
 int main(){
     // RNG
@@ -175,14 +179,15 @@ int main(){
     double tempo_servico = tamanho_pacote / largura_de_banda; // Tempo de processamento de cada pacote
     
     double tempo_injecao = 0.020; // 20 milisegundos
-    double media_conexao = 120.0; // 2 minutos
+    double media_conexao = 1.0 / 120.0; // 2 minutos
 
     // Arvore de Eventos
 
     // Árvore Heap de Eventos
-    int maximo_arvore = 1000000; // Tamanho máximo suportado pela Árvore de Eventos
+    unsigned int maximo_arvore = 400000000; // Tamanho máximo suportado pela Árvore de Eventos
     struct evento evento_atual;
     struct heap * arvore_de_eventos = cria_heap(maximo_arvore);
+    // return 0;
 
     // Primeira Coleta
     evento_atual = cria_evento('c', 0.0, 0.0);
@@ -220,7 +225,7 @@ int main(){
     while(1){
         evento_atual = extrai_heap(arvore_de_eventos);
         tempo_decorrido = evento_atual.tempo_evento;
-        printf("%lF\n", tempo_decorrido);
+        printf("[%c] %lF\n", evento_atual.tipo_evento, tempo_decorrido);
 
         if(tempo_decorrido >= params.tempo_simulacao) break;
 
@@ -228,11 +233,13 @@ int main(){
             case 'n': // Nova Conexão
                 // Insere a nova conexão na heap
                 tempo_conexao = (-1.0 / media_conexao) * log(uniforme());
+                printf("Inicio: %lF | Fim: %lF\n", tempo_decorrido, tempo_decorrido + tempo_conexao);
                 evento_atual = cria_evento('p', tempo_decorrido, tempo_decorrido + tempo_conexao);
                 insere_heap(arvore_de_eventos, evento_atual);
 
                 // Define o momento da próxima conexão
                 tempo_chegada = (-1.0 / params.media_chegada) * log(uniforme());
+                printf("Intervalo: %lF | Proxima Conexao: %lF\n", tempo_chegada, tempo_decorrido + tempo_chegada);
                 evento_atual = cria_evento('n', tempo_decorrido + tempo_chegada, 0.0);
                 insere_heap(arvore_de_eventos, evento_atual);
 
@@ -261,19 +268,21 @@ int main(){
                 break;
             
             case 'p': // Tempo de Pacote
-                // Aumenta a fila
-                fila++;
-                if(fila > max_fila) max_fila = fila;
-                
+                // Salva o tempo limite para o próximo pacote da conexão
+                tempo_conexao = evento_atual.tempo_limite;
+
                 if(!fila){
                     // Define o tempo de serviço (fila vazia)
                     evento_atual = cria_evento('s', tempo_decorrido + tempo_servico, 0.0);
                     insere_heap(arvore_de_eventos, evento_atual);
                 }
 
-                if(tempo_decorrido + tempo_injecao <= evento_atual.tempo_limite){
+                // Aumenta a fila
+                fila++;
+                if(fila > max_fila) max_fila = fila;
+
+                if(tempo_decorrido + tempo_injecao <= tempo_conexao){
                     // Insere o próximo pacote da conexão na heap (caso a conexão persista)
-                    tempo_conexao = evento_atual.tempo_limite;
                     evento_atual = cria_evento('p', tempo_decorrido + tempo_injecao, tempo_conexao);
                     insere_heap(arvore_de_eventos, evento_atual);
                 }
@@ -306,7 +315,7 @@ int main(){
                 double lambda = e_w_chegada.no_eventos / tempo_decorrido;
                 
                 // Imprime os resultados
-                printf("%.0lF, %.20lF\n", tempo_decorrido, e_n_calculo - lambda * e_w_calculo);
+                // printf("%.0lF, %.20lF\n", tempo_decorrido, e_n_calculo - lambda * e_w_calculo);
 
                 // Insere o novo valor de calculo na heap
                 evento_atual = cria_evento('c', tempo_decorrido + 10.0, 0.0);

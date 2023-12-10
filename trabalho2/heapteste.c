@@ -146,6 +146,12 @@ Evento getMin(heap* h){
     return evento_extraido;
 }
 
+void imprime_heap(heap * h){
+    for(int i = 0; i < h->size; i++)
+        printf("[%c]: %lF,  %lF\n", h->arr[i].tipo, h->arr[i].tempo, h->arr[i].tempo_duracao);
+}
+
+
 // Define a insert function
 void insert(heap* h, Evento data)
 {
@@ -176,11 +182,15 @@ int main(){
 
     e = getMin(eventos_heap);
     printf("%lF ", e.tempo);
+    //imprime_heap(eventos_heap->arr);
     e = getMin(eventos_heap);
     printf("%lF ", e.tempo);
+    //imprime_heap(eventos_heap->);
     e = getMin(eventos_heap);
     printf("%lF ", e.tipo);
+    //imprime_heap(eventos_heap->arr);
     e = getMin(eventos_heap);
     printf("%lF ", e.tipo);
+    //imprime_heap(eventos_heap->arr);
 
 }

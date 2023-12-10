@@ -2,9 +2,10 @@
 #define MAXN 1000100
 
 typedef struct {
-    double tempo_evento;
-    double tempo_duracao;
-    short tipo_evento;
+    enum TipoEvento tipo;
+    double tempo;
+    double tempo_duracao; // pacote (tempo de serviç)
+    // outros campos necessários
 } Evento;
 
 Evento heap[MAXN];
@@ -31,7 +32,7 @@ void heapify_up(int v)
         return;
 
     int p = pai(v);
-    if (heap[v].tempo_evento < heap[p].tempo_evento)
+    if (heap[v].tempo < heap[p].tempo)
     {
         Evento temp = heap[v];
         heap[v] = heap[p];
@@ -48,9 +49,9 @@ void heapify_down(int v)
 
     int menor = v;
 
-    if (d <= tamanho_heap && heap[d].tempo_evento < heap[menor].tempo_evento)
+    if (d <= tamanho_heap && heap[d].tempo < heap[menor].tempo)
         menor = d;
-    if (e <= tamanho_heap && heap[e].tempo_evento < heap[menor].tempo_evento)
+    if (e <= tamanho_heap && heap[e].tempo < heap[menor].tempo)
         menor = e;
 
     if (menor != v)
@@ -82,5 +83,5 @@ void deleta(int posicao)
 }
 
 void printa_raiz(void) {
-    printf("Raiz: Evento %d tempo %.10lF\n", heap[1].tipo_evento, heap[1].tempo_evento);
+    printf("Raiz: Evento %d tempo %.10lF\n", heap[1].tipo, heap[1].tempo);
 }
