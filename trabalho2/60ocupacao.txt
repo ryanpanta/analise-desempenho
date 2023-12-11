@@ -1,0 +1,7 @@
+É preciso de 7978.723404 pessoas para atingir a ocupação desejada
+É preciso de 66.489362 pessoas por segundo para atingir a ocupação desejada
+ocupacao: 0.598618
+tamanho maximo da fila: 24
+E[N]: 1.045205
+E[W]: 0.000003
+Erro de Little: -0.08387517743686889737
