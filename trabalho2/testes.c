@@ -6,7 +6,7 @@
 
 
 #define TAM_PACOTE 188.0 * 8.0 // tamanho do pacote = 188 bytes * 8
-#define TEMPO_SIMULACAO 100.0 // 10 dias em segundos
+#define TEMPO_SIMULACAO 43200.0 // 10 dias em segundos
 //#define INVERVALO_PACOTE 0.02 // 20ms em segundos
 #define TAM_LINK 1000000000.0 // 1 Gbps
 //#define PACOTE_SEGUNDO 75200.0 // pacote por segundo, ou seja, um usuario manda 75200 bits por segundo
@@ -176,9 +176,6 @@ int main() {
     double tempo_chamada = 1.0/120.0;
     double tempo_servico_s = (188.0 * 8.0) / 1000000000.0;
 
-    printf("tempo servico: %lF \n", tempo_servico_s); // 188 * 8 / 1e9
-    printf("tempo chamada:%lF\n", tempo_chamada);
-
     int semente = time(NULL);
     srand(semente);
 
@@ -342,7 +339,7 @@ int main() {
     
     printf("ocupacao: %lF\n", soma_ocupacao/tempo_decorrido);
 
-    printf("tamanho maximo da fila: %d\n", max_fila);
+    printf("tamanho maximo da fila: %ld\n", max_fila);
 
 
     printf("E[N]: %lF\n", e_n_calculo);
