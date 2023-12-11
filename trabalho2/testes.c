@@ -5,14 +5,15 @@
 #include <time.h>
 
 
-#define TAM_PACOTE 188.0 * 9.0 // tamanho do pacote = 188 bytes * 8
-#define TEMPO_SIMULACAO 20.0 // 10 dias em segundos
-#define INVERVALO_PACOTE 0.02 // 20ms em segundos
+#define TAM_PACOTE 188.0 * 8.0 // tamanho do pacote = 188 bytes * 8
+#define TEMPO_SIMULACAO 150.0 // 10 dias em segundos
+//#define INVERVALO_PACOTE 0.02 // 20ms em segundos
 #define TAM_LINK 1000000000.0 // 1 Gbps
-#define PACOTE_SEGUNDO 75200.0 // pacote por segundo, ou seja, um usuario manda 75200 bits por segundo
+//#define PACOTE_SEGUNDO 75200.0 // pacote por segundo, ou seja, um usuario manda 75200 bits por segundo
 #define GBPS_USUARIO 0.0000752 // quantidade de Gbps por usuario
 #define TEMPO_SERVICO_S TAM_PACOTE/TAM_LINK // tempo de serviço para atender um pacote
-#define TEMPO_CHAMADA 120.0
+#define TEMPO_CHAMADA 1.0 / 120.0 // tempo medio chamada
+
 
 double quantidade_pessoas = 0.0;
 double quantidade_pessoas_segundo = 0.0;
@@ -49,7 +50,7 @@ typedef struct {
     // outros campos necessários
 } Evento;
 
-#define MAXN 1000100
+#define MAXN 10000000
 
 
 Evento heap[MAXN];
@@ -143,6 +144,7 @@ void le_parametros(parametros * params){
     params->tempo_simulacao = TEMPO_SIMULACAO;
     
     printf("É preciso de %lF pessoas para atingir a ocupação desejada\n", quantidade_pessoas);
+    printf("É preciso de %lF pessoas por segundo para atingir a ocupação desejada\n", quantidade_pessoas_segundo);
  
 }
 
@@ -170,9 +172,7 @@ double min(double d1, double d2){
     return d2;
 }
 
-
-
-int main(){
+int main() {
 
     int semente = time(NULL);
     srand(semente);
@@ -180,17 +180,17 @@ int main(){
     // Leitura dos parâmetros da simulação
     parametros params;
     le_parametros(&params);
-
-
+    
     // Variáveis de controle da simulação
     double tempo_decorrido = 0.0;
     double intervalo_chegada = 1.0/quantidade_pessoas_segundo; // 1/66
-    double tempo_chegada = (-1.0 / (1.0/ intervalo_chegada)) * log(uniforme()); //primeira conexão
+    double media_chegada = 1.0/intervalo_chegada;
+    double tempo_chegada = (-1.0 / media_chegada) * log(uniforme()); //primeira conexão
     double tempo_saida = DBL_MAX; // Inicializa o tempo de saída como infinito
     double tempo_conexao = 0.0;
 
     unsigned long int fila = 0;
-    int max_fila = 0.0;
+    unsigned long int max_fila = 0;
 
     // Variável para medir a ocupação do servidor
     double soma_ocupacao = 0.0;
@@ -224,77 +224,56 @@ int main(){
     // Loop principal da simulação
     while(tempo_decorrido < params.tempo_simulacao){
         e = heap[1];
+        //printa_raiz();
         deleta(1);
         tempo_decorrido = e.tempo;
-        //printf("%lF\n", tempo_decorrido); //  <--- testes
+        
 
-        if(e.tipo == NOVA_CONEXAO){ //n
+        if(e.tipo == NOVA_CONEXAO){ 
             // Evento de chegada
                
             tempo_conexao = (-1.0/TEMPO_CHAMADA) * log(uniforme()); // aproximadamente 2 minutos
-            // isso deve manter? tempo_saida = tempo_decorrido + TEMPO_SERVICO_S; // Define o tempo de saída
             
-            //soma_ocupacao += TEMPO_SERVICO_S;  
-            
-            
-
             double tempo_conexao_ativa = tempo_decorrido + tempo_conexao;
 
-
-            e = criaEvento(CONEXAO_ATIVA, tempo_conexao_ativa, tempo_conexao);
+            e = criaEvento(CONEXAO_ATIVA, tempo_conexao, tempo_conexao_ativa);
             insere(e);
         
-            double nova_conexao = tempo_decorrido + (-1.0/quantidade_pessoas_segundo) * log(uniforme());
+            double nova_conexao = tempo_decorrido + (-1.0/media_chegada) * log(uniforme());
             e = criaEvento(NOVA_CONEXAO, nova_conexao, 0.0);
             insere(e);
             
-            //max_fila = fila > max_fila? fila:max_fila;
-            // isso deve manter? tempo_chegada = tempo_decorrido + (-1.0/params.media_chegada) * log(uniforme());  // Define o próximo tempo de chegada
 
-            //calculo little -- E{N} -- chegada
-            // e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
-            // e_n.no_eventos++;
-            // e_n.tempo_anterior = tempo_decorrido;
-
-            // //calculo little -- E{W} -- chegada
-            // e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
-            // e_w_chegada.no_eventos++;
-            // e_w_chegada.tempo_anterior = tempo_decorrido;
-
-        } else if(e.tipo == CONEXAO_ATIVA){ //p
+        } else if(e.tipo == CONEXAO_ATIVA){ 
             // Evento de saída
 
-            if(fila > max_fila) max_fila = fila;
-            double tempo_pacote = tempo_decorrido + 0.02;
-            // double tempo_pacote = tempo_decorrido;
-            // tempo_pacote += 0.02;
-            
-            //double tempo_saida_servico = tempo_decorrido + TEMPO_SERVICO_S;
             double tempo_saida_servico = e.tempo_duracao;
+            
+           
+            if(!fila){
+                tempo_saida = tempo_decorrido + TEMPO_SERVICO_S;
+                e = criaEvento(TEMPO_SERVICO, tempo_saida, 0.0);
+                insere(e);
+                soma_ocupacao += TEMPO_SERVICO_S;
+            }
+            fila++;
+            max_fila = fila > max_fila? fila: max_fila;
 
+            double tempo_pacote = tempo_decorrido + 0.02;
             if(tempo_pacote < tempo_saida_servico){
                 e = criaEvento(CONEXAO_ATIVA, tempo_pacote, tempo_saida_servico);
                 insere(e);
             }
-            fila++;
         
-            if(!fila){
-                tempo_saida = tempo_decorrido + TEMPO_SERVICO_S;
-                e = criaEvento(TEMPO_SERVICO, TEMPO_SERVICO_S, tempo_saida);
-                insere(e);
-                soma_ocupacao += TEMPO_SERVICO_S;
-            }
-
-            
             //calculo little -- E{N}
             e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
-            e_n.no_eventos--;
+            e_n.no_eventos++;
             e_n.tempo_anterior = tempo_decorrido;
 
             //calculo little -- E{W} -- chegada
-            e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
-            e_w_saida.no_eventos++;
-            e_w_saida.tempo_anterior = tempo_decorrido;
+            e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
+            e_w_chegada.no_eventos++;
+            e_w_chegada.tempo_anterior = tempo_decorrido;
 
         } else if(e.tipo == TEMPO_SERVICO){ // SAIDA DE PACOTE
 
@@ -304,7 +283,8 @@ int main(){
                 e = criaEvento(TEMPO_SERVICO, tempo_saida, 0.0);
                 insere(e);
                 soma_ocupacao += TEMPO_SERVICO_S;
-            }else{
+            }
+            else{
                 tempo_saida = DBL_MAX;
             }
 
@@ -320,10 +300,12 @@ int main(){
         } else if(e.tipo == COLETA_DADOS){ //c
 
             e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
-            e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
-            e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
             e_n.tempo_anterior = tempo_decorrido;
+            
+            e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
             e_w_chegada.tempo_anterior = tempo_decorrido;
+           
+            e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
             e_w_saida.tempo_anterior = tempo_decorrido;
 
             double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
@@ -334,7 +316,7 @@ int main(){
             fprintf(f, "%.2lF,%.20lF\n", tempo_coleta, fabs(erroLittle));
             
             printf("Tempo de: %lF Erro de Little: %.20lF\n", tempo_coleta, fabs(erroLittle));
-            //tempo_coleta += 10;
+            tempo_coleta += 10;
             e = criaEvento(COLETA_DADOS, tempo_decorrido + 10.0, 0.0);
             insere(e);
         } 
@@ -350,13 +332,14 @@ int main(){
     e_w_saida.soma_areas += (tempo_decorrido - e_w_saida.tempo_anterior) * e_w_saida.no_eventos;
 
     //Cálculo e exibição da taxa média de ocupação do servidor
+    double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
+    double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
+    double lambda = e_w_chegada.no_eventos / tempo_decorrido;
+    
     printf("ocupacao: %lF\n", soma_ocupacao/tempo_decorrido);
 
     printf("tamanho maximo da fila: %d\n", max_fila);
 
-    double e_n_calculo = e_n.soma_areas / tempo_decorrido; 
-    double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
-    double lambda = e_w_chegada.no_eventos / tempo_decorrido;
 
     printf("E[N]: %lF\n", e_n_calculo);
     printf("E[W]: %lF\n", e_w_calculo);
