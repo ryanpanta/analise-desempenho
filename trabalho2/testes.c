@@ -6,14 +6,13 @@
 
 
 #define TAM_PACOTE 188.0 * 8.0 // tamanho do pacote = 188 bytes * 8
-#define TEMPO_SIMULACAO 150.0 // 10 dias em segundos
+#define TEMPO_SIMULACAO 100.0 // 10 dias em segundos
 //#define INVERVALO_PACOTE 0.02 // 20ms em segundos
 #define TAM_LINK 1000000000.0 // 1 Gbps
 //#define PACOTE_SEGUNDO 75200.0 // pacote por segundo, ou seja, um usuario manda 75200 bits por segundo
 #define GBPS_USUARIO 0.0000752 // quantidade de Gbps por usuario
-#define TEMPO_SERVICO_S TAM_PACOTE/TAM_LINK // tempo de serviço para atender um pacote
-#define TEMPO_CHAMADA 1.0 / 120.0 // tempo medio chamada
-
+//#define TEMPO_SERVICO_S TAM_PACOTE/TAM_LINK // tempo de serviço para atender um pacote 
+//#define TEMPO_CHAMADA 1.0 / 120.0 // tempo medio chamada
 
 double quantidade_pessoas = 0.0;
 double quantidade_pessoas_segundo = 0.0;
@@ -37,10 +36,10 @@ void inicia_little(little * l){
 }
 
 enum TipoEvento {
-    NOVA_CONEXAO, 
-    CONEXAO_ATIVA,
-    TEMPO_SERVICO,
-    COLETA_DADOS,
+    NOVA_CONEXAO, // 0 
+    CONEXAO_ATIVA, // 1 envio de pacotes
+    TEMPO_SERVICO, // 2 saida de pacotes
+    COLETA_DADOS, // 3
 };
 
 typedef struct {
@@ -174,6 +173,12 @@ double min(double d1, double d2){
 
 int main() {
 
+    double tempo_chamada = 1.0/120.0;
+    double tempo_servico_s = (188.0 * 8.0) / 1000000000.0;
+
+    printf("tempo servico: %lF \n", tempo_servico_s); // 188 * 8 / 1e9
+    printf("tempo chamada:%lF\n", tempo_chamada);
+
     int semente = time(NULL);
     srand(semente);
 
@@ -183,9 +188,9 @@ int main() {
     
     // Variáveis de controle da simulação
     double tempo_decorrido = 0.0;
-    double intervalo_chegada = 1.0/quantidade_pessoas_segundo; // 1/66
-    double media_chegada = 1.0/intervalo_chegada;
-    double tempo_chegada = (-1.0 / media_chegada) * log(uniforme()); //primeira conexão
+    double intervalo_chegada = 1.0/quantidade_pessoas_segundo; // 60% ocupação - > 1/66.489362 -> 0.01504
+    double media_chegada = 1.0/intervalo_chegada; // -> 1.0/0.01504
+    double tempo_chegada = (-1.0 / media_chegada) * log(uniforme()); 
     double tempo_saida = DBL_MAX; // Inicializa o tempo de saída como infinito
     double tempo_conexao = 0.0;
 
@@ -207,15 +212,13 @@ int main() {
     /*
         Little - fim
     */
-
     Evento e;
     
-    e = criaEvento(COLETA_DADOS, 10.0, 0.0);
+    e = criaEvento(COLETA_DADOS, 10.0, 0.0);    
     insere(e);
 
     e = criaEvento(NOVA_CONEXAO, tempo_chegada, 0.0);
     insere(e);
-    
     
     double tempo_coleta = 10.0;
     FILE *f;
@@ -223,48 +226,48 @@ int main() {
 
     // Loop principal da simulação
     while(tempo_decorrido < params.tempo_simulacao){
-        e = heap[1];
+        e = heap[1]; // pega o menor valor (minimo) //
         //printa_raiz();
-        deleta(1);
+        deleta(1); // DELETA O MENOR DA HEAP
         tempo_decorrido = e.tempo;
         
 
         if(e.tipo == NOVA_CONEXAO){ 
             // Evento de chegada
-               
-            tempo_conexao = (-1.0/TEMPO_CHAMADA) * log(uniforme()); // aproximadamente 2 minutos
+            
+            tempo_conexao = (-1.0/tempo_chamada) * log(uniforme()); // aproximadamente 2 minutos
             
             double tempo_conexao_ativa = tempo_decorrido + tempo_conexao;
-
-            e = criaEvento(CONEXAO_ATIVA, tempo_conexao, tempo_conexao_ativa);
-            insere(e);
-        
+            
+            e = criaEvento(CONEXAO_ATIVA, tempo_decorrido, tempo_conexao_ativa);
+            insere(e); //EVENTO DE CONEXAO ATIVA (ENVIO DE PACOTES)
+             
             double nova_conexao = tempo_decorrido + (-1.0/media_chegada) * log(uniforme());
-            e = criaEvento(NOVA_CONEXAO, nova_conexao, 0.0);
+            e = criaEvento(NOVA_CONEXAO, nova_conexao, 0.0); //EVENTO DA PROXIMA CONEXAO
             insere(e);
             
 
-        } else if(e.tipo == CONEXAO_ATIVA){ 
-            // Evento de saída
+        } else if(e.tipo == CONEXAO_ATIVA){ //ENVIO DE PACOTES (ENTRADA/CHEGADA)
 
-            double tempo_saida_servico = e.tempo_duracao;
-            
+            tempo_conexao = e.tempo_duracao;
            
+            double tempo_pacote = tempo_decorrido + 0.02;
+        
+            if(tempo_pacote < tempo_conexao){
+                e = criaEvento(CONEXAO_ATIVA, tempo_pacote, tempo_conexao);
+                insere(e);
+            }
+        
             if(!fila){
-                tempo_saida = tempo_decorrido + TEMPO_SERVICO_S;
+                tempo_saida = tempo_decorrido + tempo_servico_s;
                 e = criaEvento(TEMPO_SERVICO, tempo_saida, 0.0);
                 insere(e);
-                soma_ocupacao += TEMPO_SERVICO_S;
+                soma_ocupacao += tempo_servico_s;
             }
-            fila++;
-            max_fila = fila > max_fila? fila: max_fila;
 
-            double tempo_pacote = tempo_decorrido + 0.02;
-            if(tempo_pacote < tempo_saida_servico){
-                e = criaEvento(CONEXAO_ATIVA, tempo_pacote, tempo_saida_servico);
-                insere(e);
-            }
-        
+            fila++;
+            max_fila = fila >= max_fila? fila: max_fila;
+
             //calculo little -- E{N}
             e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
             e_n.no_eventos++;
@@ -279,14 +282,15 @@ int main() {
 
             fila--;
             if(fila){
-                tempo_saida = tempo_decorrido + TEMPO_SERVICO_S;
+                tempo_saida = tempo_decorrido + tempo_servico_s;
                 e = criaEvento(TEMPO_SERVICO, tempo_saida, 0.0);
                 insere(e);
-                soma_ocupacao += TEMPO_SERVICO_S;
+                soma_ocupacao += tempo_servico_s;
             }
             else{
                 tempo_saida = DBL_MAX;
             }
+        
 
             e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
             e_n.no_eventos--;

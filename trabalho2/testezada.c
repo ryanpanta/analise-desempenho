@@ -225,7 +225,6 @@ int main(){
     while(1){
         evento_atual = extrai_heap(arvore_de_eventos);
         tempo_decorrido = evento_atual.tempo_evento;
-        printf("[%c] %lF\n", evento_atual.tipo_evento, tempo_decorrido);
 
         if(tempo_decorrido >= params.tempo_simulacao) break;
 
@@ -253,6 +252,8 @@ int main(){
                     // Processa o próximo pacote (fila não vazia)
                     evento_atual = cria_evento('s', tempo_decorrido + tempo_servico, 0.0);
                     insere_heap(arvore_de_eventos, evento_atual);
+                    // Registra o tempo de serviço
+                    soma_ocupacao += tempo_servico;
                 }
 
                 // Calculos de Little (E[N])
@@ -275,6 +276,8 @@ int main(){
                     // Define o tempo de serviço (fila vazia)
                     evento_atual = cria_evento('s', tempo_decorrido + tempo_servico, 0.0);
                     insere_heap(arvore_de_eventos, evento_atual);
+                    // Registra o tempo de serviço
+                    soma_ocupacao += tempo_servico;
                 }
 
                 // Aumenta a fila
