@@ -1,7 +1,0 @@
-Tempo de: 43190.000000 Erro de Little: 0.07866126439935472447
-Tempo de: 43200.000000 Erro de Little: 0.07981742647068545971
-ocupacao: 0.598058
-tamanho maximo da fila: 20
-E[N]: 1.044999
-E[W]: 0.000003
-Erro de Little: -0.07981742647068545971
